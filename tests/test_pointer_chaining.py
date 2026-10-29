@@ -19,11 +19,17 @@ class SimulatedCursor:
     def position(self) -> tuple[float, float]:
         return self.x, self.y
 
-    def move_pointer(self, x: float, y: float) -> None:
+    def move_pointer(self, x: float, y: float, *, dragging: bool = False) -> None:
         self.x, self.y = x, y
 
     def click(self, click_count: int) -> None:
         self.clicks.append(click_count)
+
+    def press(self) -> None:
+        pass
+
+    def release(self) -> None:
+        pass
 
     def scroll(self, vertical_pixels: int) -> None:
         pass

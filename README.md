@@ -14,8 +14,9 @@ When Active:
 
 - **Pointer:** index finger extended, other fingers curled. Moves the cursor relative to where it is (trackpad-style), with acceleration so fast flicks travel farther than slow drags.
 - **Reposition ("lift the mouse"):** curl your index finger. The cursor stops instantly; move your hand back to the middle of the camera view and point again to keep going. The cursor moves across all connected displays.
-- **Click:** while pointing, touch thumb to index tip, then release. One click fires on release; holding the pinch never repeats. The cursor freezes as the thumb closes in so the click lands where you aimed.
-- **Double-click:** two pinches within the macOS double-click interval without moving the cursor.
+- **Click:** while pointing, touch thumb to index tip, then release quickly. One click fires on release. The cursor freezes as the thumb closes in so the click lands where you aimed.
+- **Double-click:** two quick pinches within the macOS double-click interval without moving the cursor.
+- **Drag and drop:** pinch and hold still for about a third of a second (`drag_hold_seconds`). The mouse button goes down where the cursor is; keep pinching and move your hand to drag, then open the pinch to drop. Pausing tracking or losing the hand for more than 0.2 s also drops, so the button never stays stuck down.
 
 - **Scroll (joystick):** turn your hand sideways to the camera and stretch the index and middle fingers out horizontally, pressed together (ring and pinky curled). Hold still for about a third of a second: that height becomes the neutral center. Raise the fingers above it to scroll down, lower them to scroll up; the farther from center, the faster. Return to center to stop. Cursor and clicks are disabled while scrolling. If the direction feels backwards, click **Settings → Invert scroll**; it applies immediately.
 
@@ -45,6 +46,7 @@ Edit the settings JSON (**Settings → Open settings file**), then Pause and Sta
 | `scroll_release_slack` | 1.5 | Once scrolling, the pose limits loosen by this factor so tracking noise can't interrupt it. |
 | `scroll_exit_grace_seconds` | 0.1 | A pose dropout shorter than this pauses scrolling but keeps the center. |
 | `pinch_down_threshold` / `pinch_up_threshold` | 0.25 / 0.35 | Pinch ratio for press / release. |
+| `drag_hold_seconds` | 0.35 | How long a pinch is held before it becomes a drag instead of a click. Raise it if quick clicks turn into drags. |
 
 Set `pointer_min_gain` equal to `pointer_max_gain` to turn acceleration off.
 

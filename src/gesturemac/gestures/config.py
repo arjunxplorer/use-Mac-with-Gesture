@@ -50,6 +50,8 @@ class GestureConfig:
     pinch_up_threshold: float = 0.35
     double_click_interval: float = DEFAULT_DOUBLE_CLICK_INTERVAL
     double_click_distance: float = 8.0
+    # A pinch held this long presses the button and starts a drag instead of clicking on release.
+    drag_hold_seconds: float = 0.35
     # Joystick scrolling. Distances are in units (1 = the camera image's short side), speeds in
     # pixels per second. Fingers above the neutral center scroll down, below scroll up.
     invert_scroll: bool = False
@@ -83,6 +85,7 @@ class GestureConfig:
             pinch_down_threshold=settings.pinch_down_threshold,
             pinch_up_threshold=settings.pinch_up_threshold,
             double_click_interval=system_double_click_interval(),
+            drag_hold_seconds=settings.drag_hold_seconds,
             invert_scroll=settings.invert_scroll,
             scroll_activation_hold_seconds=settings.scroll_activation_hold_seconds,
             scroll_dead_zone=settings.scroll_dead_zone,

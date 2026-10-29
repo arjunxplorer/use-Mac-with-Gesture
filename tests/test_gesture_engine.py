@@ -1,4 +1,4 @@
-from gesturemac.gestures.commands import ClickPointer, MovePointer
+from gesturemac.gestures.commands import ClickPointer, MovePointer, PressPointer, ReleasePointer
 from gesturemac.gestures.config import GestureConfig
 from gesturemac.gestures.engine import GestureEngine, GestureMode
 from gesturemac.landmarks import HandFrame, HandJoint, HandPoint
@@ -36,8 +36,8 @@ def pointer_pose(
     )
 
 
-def pinched(timestamp: float) -> HandFrame:
-    return pointer_pose(timestamp, thumb=(0.505, 0.35))
+def pinched(timestamp: float, index_x: float = 0.5, index_y: float = 0.35) -> HandFrame:
+    return pointer_pose(timestamp, index_x=index_x, index_y=index_y, thumb=(index_x + 0.005, index_y))
 
 
 def _engine(**overrides: float) -> GestureEngine:
@@ -207,3 +207,59 @@ def test_third_pinch_starts_new_click() -> None:
     _pinch_and_release(engine, t + 0.15)
     third = _pinch_and_release(engine, t + 0.27)
     assert third == [ClickPointer(click_count=1)]
+
+
+def _start_drag(engine: GestureEngine, t: float) -> float:
+    """Pinch and hold past drag_hold_seconds (0.3 in these tests); returns the press time."""
+    assert engine.process(pinched(t)) == []
+    assert engine.process(pinched(t + 0.15)) == []
+    assert engine.process(pinched(t + 0.31)) == [PressPointer()]
+    assert engine.mode is GestureMode.DRAGGING
+    return t + 0.31
+
+
+def test_held_pinch_presses_drags_and_releases() -> None:
+    engine = _engine(drag_hold_seconds=0.3, pointer_sensitivity=1000.0)
+    t = _start_drag(engine, _enter_pointer(engine) + 0.03)
+    engine.process(pinched(t + 0.03))
+    moves = engine.process(pinched(t + 0.06, index_x=0.55))
+    assert len(moves) == 1 and isinstance(moves[0], MovePointer) and moves[0].dx > 0
+    released = engine.process(pointer_pose(t + 0.09, index_x=0.55))
+    assert released == [ReleasePointer()]
+    assert engine.mode is GestureMode.POINTER
+    assert engine.clicks_emitted == 0
+    assert engine.drags_emitted == 1
+
+
+def test_quick_pinch_still_clicks_not_drags() -> None:
+    engine = _engine(drag_hold_seconds=0.3)
+    t = _enter_pointer(engine)
+    assert _pinch_and_release(engine, t + 0.03) == [ClickPointer(click_count=1)]
+    assert engine.drags_emitted == 0
+
+
+def test_click_after_drag_is_single() -> None:
+    engine = _engine(drag_hold_seconds=0.3)
+    t = _enter_pointer(engine)
+    _pinch_and_release(engine, t + 0.03)
+    t = _start_drag(engine, t + 0.15)
+    engine.process(pointer_pose(t + 0.03))
+    assert _pinch_and_release(engine, t + 0.06) == [ClickPointer(click_count=1)]
+
+
+def test_brief_hand_dropout_keeps_drag() -> None:
+    engine = _engine(drag_hold_seconds=0.3, hand_loss_seconds=0.2)
+    t = _start_drag(engine, _enter_pointer(engine) + 0.03)
+    assert engine.note_hand_missing(t + 0.1) == []
+    assert engine.mode is GestureMode.DRAGGING
+    assert engine.process(pinched(t + 0.13)) == []
+    assert engine.mode is GestureMode.DRAGGING
+
+
+def test_hand_lost_during_drag_releases() -> None:
+    engine = _engine(drag_hold_seconds=0.3, hand_loss_seconds=0.2)
+    t = _start_drag(engine, _enter_pointer(engine) + 0.03)
+    assert engine.note_hand_missing(t + 0.1) == []
+    assert engine.note_hand_missing(t + 0.25) == [ReleasePointer()]
+    assert engine.mode is GestureMode.IDLE
+    assert engine.process(None) == []

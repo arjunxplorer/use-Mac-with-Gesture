@@ -1,4 +1,4 @@
-"""Pure gesture state machine: pointer movement, pinch click, double-click, joystick scroll."""
+"""Pure gesture state machine: pointer movement, pinch click/double-click/drag, joystick scroll."""
 
 from __future__ import annotations
 
@@ -6,7 +6,13 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 
-from gesturemac.gestures.commands import ClickPointer, GestureCommand, MovePointer
+from gesturemac.gestures.commands import (
+    ClickPointer,
+    GestureCommand,
+    MovePointer,
+    PressPointer,
+    ReleasePointer,
+)
 from gesturemac.gestures.config import GestureConfig
 from gesturemac.gestures.scroll import JoystickScroller, ScrollPhase, is_side_scroll_pose
 from gesturemac.landmarks import HandFrame, HandJoint, HandPoint
@@ -16,6 +22,7 @@ class GestureMode(str, Enum):
     IDLE = "idle"
     POINTER = "pointer"
     PINCHING = "pinching"
+    DRAGGING = "dragging"
     SCROLLING = "scrolling"
 
 
@@ -62,6 +69,7 @@ class GestureEngine:
     mode: GestureMode = GestureMode.IDLE
     last_pinch_ratio: float | None = None
     clicks_emitted: int = 0
+    drags_emitted: int = 0
     _candidate: GestureMode | None = None
     _candidate_since: float | None = None
     _smooth_x: float | None = None
@@ -78,6 +86,8 @@ class GestureEngine:
     _last_click_at: float | None = None
     _last_click_count: int = 0
     _moved_since_click: float = 0.0
+    _pinch_started_at: float = 0.0
+    _pinch_seen_at: float = 0.0
     _scroller: JoystickScroller = field(default_factory=JoystickScroller)
 
     @property
@@ -118,6 +128,8 @@ class GestureEngine:
 
         if self.mode is GestureMode.PINCHING:
             return self._continue_pinch(pinch, ts)
+        if self.mode is GestureMode.DRAGGING:
+            return self._continue_drag(frame, pinch, ts)
 
         pose = self._classify_pose(frame)
         self._update_mode(pose, ts)
@@ -144,6 +156,7 @@ class GestureEngine:
             return []
         if pinch is not None and pinch < self.config.pinch_down_threshold:
             self.mode = GestureMode.PINCHING
+            self._pinch_started_at = ts
             self._reset_anchors()
             return []
         if pinch is not None and pinch < self.config.pinch_up_threshold:
@@ -161,6 +174,13 @@ class GestureEngine:
 
     def _on_hand_missing(self, timestamp: float | None) -> list[GestureCommand]:
         self.last_pinch_ratio = None
+        if self.mode is GestureMode.DRAGGING:
+            self._reset_anchors()
+            # Ride out a brief tracking dropout so the dragged item isn't dropped mid-move.
+            grace = self.config.hand_loss_seconds
+            if timestamp is not None and timestamp - self._pinch_seen_at <= grace:
+                return []
+            return self._end_drag(GestureMode.IDLE)
         if self.mode is GestureMode.PINCHING:
             self.mode = GestureMode.IDLE
             self._candidate = None
@@ -181,10 +201,37 @@ class GestureEngine:
             self._reset_anchors()
             return []
         if pinch <= self.config.pinch_up_threshold:
-            return []
+            if ts - self._pinch_started_at < self.config.drag_hold_seconds:
+                return []
+            self.mode = GestureMode.DRAGGING
+            self._pinch_seen_at = ts
+            self._reset_anchors()
+            # A drag breaks any click chain: the next pinch is a fresh single click.
+            self._last_click_count = 0
+            self.drags_emitted += 1
+            return [PressPointer()]
         self.mode = GestureMode.POINTER
         self._reset_anchors()
         return [self._make_click(ts)]
+
+    def _continue_drag(
+        self, frame: HandFrame, pinch: float | None, ts: float
+    ) -> list[GestureCommand]:
+        if pinch is None:
+            self._reset_anchors()
+            if ts - self._pinch_seen_at > self.config.hand_loss_seconds:
+                return self._end_drag(GestureMode.IDLE)
+            return []
+        self._pinch_seen_at = ts
+        if pinch > self.config.pinch_up_threshold:
+            return self._end_drag(GestureMode.POINTER)
+        return self._pointer_moves(frame, ts)
+
+    def _end_drag(self, next_mode: GestureMode) -> list[GestureCommand]:
+        self.mode = next_mode
+        self._candidate = None
+        self._reset_anchors()
+        return [ReleasePointer()]
 
     def _make_click(self, ts: float) -> ClickPointer:
         count = 1

@@ -330,6 +330,7 @@ class TrackingWorker:
             self._tracker.close()
             self._tracker = None
         self._gesture_engine.reset()
+        self._input.release_held_button()
         self._emit_stats()
 
     def _emit_stats(self) -> None:

@@ -24,6 +24,7 @@ SCROLL_SLACK_RANGE = (1.0, 3.0)
 SCROLL_SEPARATION_RANGE = (0.05, 3.0)
 SCROLL_ANGLE_RANGE = (1.0, 90.0)
 SCROLL_EXTENSION_RANGE = (0.0, 1.0)
+DRAG_HOLD_SECONDS_RANGE = (0.1, 2.0)
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -53,6 +54,7 @@ class Settings:
     scroll_exit_grace_seconds: float = 0.1
     pinch_down_threshold: float = 0.25
     pinch_up_threshold: float = 0.35
+    drag_hold_seconds: float = 0.5
     show_diagnostics: bool = False
 
     def clamped(self) -> Settings:
@@ -112,6 +114,7 @@ class Settings:
             scroll_exit_grace_seconds=_clamp(self.scroll_exit_grace_seconds, *SCROLL_SECONDS_RANGE),
             pinch_down_threshold=down,
             pinch_up_threshold=up,
+            drag_hold_seconds=_clamp(self.drag_hold_seconds, *DRAG_HOLD_SECONDS_RANGE),
             show_diagnostics=bool(self.show_diagnostics),
         )
 

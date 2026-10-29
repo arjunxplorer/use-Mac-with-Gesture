@@ -149,6 +149,7 @@ class GestureMacApp(rumps.App):
         )
         settings_menu.add(rumps.MenuItem(f"Pinch down: {s.pinch_down_threshold:g}"))
         settings_menu.add(rumps.MenuItem(f"Pinch up: {s.pinch_up_threshold:g}"))
+        settings_menu.add(rumps.MenuItem(f"Drag hold: {s.drag_hold_seconds:g} s"))
         settings_menu.add(
             rumps.MenuItem(
                 f"Diagnostics preview: {'on' if s.show_diagnostics else 'off'}",
@@ -197,6 +198,7 @@ class GestureMacApp(rumps.App):
                 )
             )
             self.menu.add(rumps.MenuItem(f"Clicks sent: {engine.clicks_emitted}"))
+            self.menu.add(rumps.MenuItem(f"Drags started: {engine.drags_emitted}"))
             self.menu.add(
                 rumps.MenuItem(
                     "Pointer input: "
